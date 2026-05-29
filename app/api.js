@@ -41,7 +41,9 @@ function sleep(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
 
 export async function apiFetch(path, opts={}, retryCount=0){
   const maxRetries = 5;
-  const url = API_BASE + path;
+  // Same-origin: passa pelo proxy do server.js (resolve CORS). O servidor
+  // encaminha para api.pontomais.com.br injetando origin/referer/api-version.
+  const url = path;
   const headers = { ...authHeaders(), ...(opts.headers||{}) };
   
   try {

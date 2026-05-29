@@ -84,6 +84,54 @@ app.post('/api/time_cards/register', (req, res) => {
   proxyReq.end();
 });
 
+// Proxy genérico para a API do PontoMais (GET de sessão, work_days, statuses, etc.)
+// Resolve o CORS: o browser fala same-origin com este servidor, que encaminha
+// a requisição para api.pontomais.com.br server-side (sem restrição de CORS).
+app.all('/api/*', (req, res) => {
+  const headers = {
+    'client': req.headers['client'] || '',
+    'access-token': req.headers['access-token'] || '',
+    'uid': req.headers['uid'] || '',
+    'content-type': 'application/json',
+    'api-version': '2',
+    'accept': 'application/json, text/plain, */*',
+    'accept-encoding': 'identity',
+    'origin': 'https://app2.pontomais.com.br',
+    'referer': 'https://app2.pontomais.com.br/'
+  };
+  if (req.headers['token']) headers['token'] = req.headers['token'];
+  if (req.headers['uuid']) headers['uuid'] = req.headers['uuid'];
+
+  const hasBody = req.method !== 'GET' && req.method !== 'HEAD';
+  const bodyStr = hasBody ? JSON.stringify(req.body || {}) : '';
+
+  const options = {
+    hostname: 'api.pontomais.com.br',
+    path: req.originalUrl, // inclui a query string
+    method: req.method,
+    headers
+  };
+
+  const proxyReq = https.request(options, (proxyRes) => {
+    let responseBody = '';
+    proxyRes.on('data', (chunk) => { responseBody += chunk; });
+    proxyRes.on('end', () => {
+      console.log(`[${proxyRes.statusCode}] ${req.method} ${req.originalUrl}`);
+      res.status(proxyRes.statusCode)
+        .set('Content-Type', proxyRes.headers['content-type'] || 'application/json')
+        .send(responseBody);
+    });
+  });
+
+  proxyReq.on('error', (error) => {
+    console.error('Proxy error:', error);
+    res.status(500).json({ error: 'Proxy error: ' + error.message });
+  });
+
+  if (hasBody) proxyReq.write(bodyStr);
+  proxyReq.end();
+});
+
 // Fallback para SPA - todas as outras rotas retornam o index.html
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'app', 'index.html'));
