@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ponto-menos-v3';
+const CACHE_NAME = 'ponto-menos-v4';
 const urlsToCache = [
   './index.html',
   './manifest.json',
@@ -6,8 +6,7 @@ const urlsToCache = [
   './app.js',
   './api.js',
   './ponto.js',
-  './config.js',
-  './credentials.js'
+  './config.js'
 ];
 
 self.addEventListener('install', event => {
@@ -34,6 +33,12 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // Requisicoes para a API passam direto: nunca sao cacheadas nem servidas do
+  // cache. Servir uma resposta antiga da API mascara o servidor fora do ar.
+  if (new URL(event.request.url).pathname.startsWith('/api/')) {
     return;
   }
 
